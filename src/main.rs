@@ -7,7 +7,7 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
 
     loop {
-        let (mut stream, addr) = listener.accept().await.unwrap();
+        let (stream, addr) = listener.accept().await.unwrap();
 
         println!("Got new connection from {:?}", addr);
 
@@ -29,7 +29,7 @@ async fn handle_connection(mut stream: TcpStream) -> Result<()> {
             break;
         }
 
-        let res = stream.write(b"+PONG\r\n").await?;
+        stream.write(b"+PONG\r\n").await?;
 
         println!("Sent: +OK");
     }
