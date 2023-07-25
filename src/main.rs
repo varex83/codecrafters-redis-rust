@@ -1,6 +1,7 @@
-use std::io::Write;
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 // Uncomment this block to pass the first stage
 use std::net::TcpListener;
+use bytes::buf::{Reader, Writer};
 
 fn main() {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -13,7 +14,35 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(mut _stream) => {
-                _stream.write(b"+PONG\r\n").unwrap();
+                let mut reader = BufReader::new(_stream.try_clone().unwrap());
+
+                let mut writer = BufWriter::new(_stream.try_clone().unwrap());
+
+
+                loop {
+                    let mut buffer = String::new();
+                    let res = reader.read_line(&mut buffer);
+
+                    if buffer.trim().is_empty() || res.is_err() {
+                        println!("Closing connection");
+                        break;
+                    }
+
+                    println!("Received: {}", buffer);
+
+                    let res = writer.write_all(b"+PONG\r\n");
+
+                    if res.is_err() {
+                        println!("Closing connection");
+                        break;
+                    }
+
+                    writer.flush().unwrap();
+
+                    println!("Sent: +OK");
+                }
+
+
             }
             Err(e) => {
                 println!("error: {}", e);
