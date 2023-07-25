@@ -1,42 +1,38 @@
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-// Uncomment this block to pass the first stage
-use std::net::TcpListener;
+use anyhow::Result;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
 
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
+#[tokio::main]
+async fn main() -> Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
 
-    // Uncomment this block to pass the first stage
+    loop {
+        let (mut stream, addr) = listener.accept().await.unwrap();
 
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
+        println!("Got new connection from {:?}", addr);
 
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut _stream) => {
-                let mut buffer = [0u8; 512];
-                loop {
-                    let res = _stream.read(&mut buffer).unwrap();
-
-                    if res == 0 {
-                        println!("Closing connection");
-                        break;
-                    }
-
-                    let res = _stream.write(b"+PONG\r\n");
-
-                    if res.is_err() {
-                        println!("Closing connection");
-                        break;
-                    }
-
-                    println!("Sent: +OK");
-                }
-
-
+        tokio::spawn(async move {
+            if let Err(e) = handle_connection(stream).await {
+                println!("an error occurred; error = {:?}", e);
             }
-            Err(e) => {
-                println!("error: {}", e);
-            }
-        }
+        });
     }
+}
+
+async fn handle_connection(mut stream: TcpStream) -> Result<()> {
+    let mut buffer = [0u8; 512];
+    loop {
+        let res = stream.read(&mut buffer).await?;
+
+        if res == 0 {
+            println!("Closing connection");
+            break;
+        }
+
+        let res = stream.write(b"+PONG\r\n").await?;
+
+        println!("Sent: +OK");
+    }
+
+    Ok(())
 }
