@@ -13,7 +13,7 @@ pub enum CommandIdent {
 
 impl CommandIdent {
     pub fn from_str(some_str: &str) -> Option<CommandIdent> {
-        match some_str {
+        match some_str.to_uppercase().as_str() {
             "PING" => Some(CommandIdent::Ping),
             "ECHO" => Some(CommandIdent::Echo),
             _ => None,
