@@ -1,3 +1,7 @@
+mod parser;
+
+use crate::parser::Token::Command;
+use crate::parser::{CommandIdent, Parser, Token};
 use anyhow::Result;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -29,7 +33,39 @@ async fn handle_connection(mut stream: TcpStream) -> Result<()> {
             break;
         }
 
-        stream.write(b"+PONG\r\n").await?;
+        let parser = Parser::new(String::from_utf8(buffer[..res].to_vec()).unwrap());
+
+        let result = Vec::<String>::new();
+        for token in parser {
+            match token {
+                Token::Array(len, tokens) => {
+                    println!("Got array: {:?}", tokens);
+
+                    let command = tokens[0].clone();
+
+                    match command {
+                        Command(CommandIdent::Ping) => {
+                            stream.write(b"+PONG\r\n").await?;
+                        }
+                        Command(CommandIdent::Echo) => {
+                            let message = tokens[1].clone();
+
+                            stream.write(format!("+{}\r\n", message).as_bytes()).await?;
+                        }
+                        _ => {
+                            println!("Got token: {:?}", tokens);
+
+                            stream.write(b"+OK\r\n").await?;
+                        }
+                    }
+                }
+                _ => {
+                    println!("Got token: {:?}", token);
+                }
+            }
+        }
+
+        // stream.write(b"+PONG\r\n").await?;
 
         println!("Sent: +OK");
     }
