@@ -55,7 +55,7 @@ async fn handle_connection(mut stream: TcpStream) -> Result<()> {
                         _ => {
                             println!("Got token: {:?}", tokens);
 
-                            stream.write(b"+OK\r\n").await?;
+                            stream.write(b"+PONG\r\n").await?;
                         }
                     }
                 }
