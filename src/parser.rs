@@ -2,13 +2,15 @@ use crate::parser::Token::{
     Array, BulkString, Command, Error, Integer, NullBulkString, SimpleString,
 };
 use std::collections::VecDeque;
-use std::fmt::{Display, Formatter, Pointer};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-#[derive(Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Hash)]
 pub enum CommandIdent {
     Ping,
     Echo,
+    Get,
+    Set,
 }
 
 impl CommandIdent {
@@ -16,12 +18,14 @@ impl CommandIdent {
         match some_str.to_uppercase().as_str() {
             "PING" => Some(CommandIdent::Ping),
             "ECHO" => Some(CommandIdent::Echo),
+            "GET" => Some(CommandIdent::Get),
+            "SET" => Some(CommandIdent::Set),
             _ => None,
         }
     }
 }
 
-#[derive(Debug, PartialOrd, PartialEq, Clone)]
+#[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Hash)]
 pub enum Token {
     Array(i32, Vec<Token>),
     BulkString(i32, String),
@@ -36,22 +40,31 @@ impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Array(len, tokens) => {
-                write!(f, "{:?}", tokens)
+                write!(
+                    f,
+                    "*{}\r\n{}\r\n",
+                    len,
+                    tokens
+                        .iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<String>>()
+                        .join("\r\n"),
+                )
             }
-            BulkString(len, str) => {
-                write!(f, "{}", str)
+            BulkString(_, str) => {
+                write!(f, "${}\r\n{}\r\n", str.len(), str)
             }
             Integer(int) => {
-                write!(f, "{}", int)
+                write!(f, ":{}\r\n", int)
             }
             SimpleString(str) => {
-                write!(f, "{}", str)
+                write!(f, "+{}\r\n", str)
             }
             Error(str) => {
-                write!(f, "{:?}", str)
+                write!(f, "-{}\r\n", str)
             }
             NullBulkString => {
-                write!(f, "$-1")
+                write!(f, "$-1\r\n")
             }
             Command(command) => {
                 write!(f, "Command({:?})", command)
@@ -62,7 +75,6 @@ impl Display for Token {
 
 impl Token {
     pub fn next_token(stream: &mut VecDeque<String>) -> Token {
-        println!("Stream: {:?}", stream);
         let front = stream.pop_front().unwrap();
 
         let first_char = front.chars().next().unwrap();
@@ -189,6 +201,35 @@ mod tests {
                         Command(CommandIdent::Ping),
                         Command(CommandIdent::Ping)
                     ]
+                )
+            ]
+        );
+    }
+
+    #[test]
+    fn test_get_set() {
+        let input =
+            "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n*2\r\n$3\r\nGET\r\n$3\r\nkey\r\n"
+                .to_string();
+
+        let parser = Parser::new(input);
+
+        let tokens: Vec<Token> = parser.collect();
+
+        assert_eq!(
+            tokens,
+            vec![
+                Array(
+                    3,
+                    vec![
+                        Command(CommandIdent::Set),
+                        BulkString(3, "key".to_string()),
+                        BulkString(5, "value".to_string())
+                    ]
+                ),
+                Array(
+                    2,
+                    vec![Command(CommandIdent::Get), BulkString(3, "key".to_string())]
                 )
             ]
         );
