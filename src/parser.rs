@@ -11,6 +11,7 @@ pub enum CommandIdent {
     Echo,
     Get,
     Set,
+    Px,
 }
 
 impl CommandIdent {
@@ -20,6 +21,7 @@ impl CommandIdent {
             "ECHO" => Some(CommandIdent::Echo),
             "GET" => Some(CommandIdent::Get),
             "SET" => Some(CommandIdent::Set),
+            "PX" => Some(CommandIdent::Px),
             _ => None,
         }
     }
